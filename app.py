@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, send_from_directory, abort
+
 import os
 import uuid
 import sqlite3
@@ -45,7 +46,10 @@ def upload_file():
             conn.commit()
             conn.close()
 
-            return f"Link: http://localhost:5000/view/{img_id}"
+            return f"Link: {request.host_url}view/{img_id}"
+        
+
+
     return render_template('upload.html')
 
 @app.route('/view/<img_id>')
