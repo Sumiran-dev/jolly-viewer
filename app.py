@@ -1,21 +1,16 @@
-from flask import Flask, request, render_template, send_from_directory, abort
-
+from flask import Flask, request, render_template, redirect, url_for, send_from_directory, abort
 import os
 import uuid
 import sqlite3
-from dotenv import load_dotenv
-import openai
-
-
-# Load .env
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Initialize DB
+# Ensure uploads folder exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Initialize the database
 def init_db():
     conn = sqlite3.connect('viewonce.db')
     c = conn.cursor()
@@ -29,6 +24,8 @@ def init_db():
     conn.commit()
     conn.close()
 
+init_db()
+
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
@@ -39,16 +36,14 @@ def upload_file():
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
 
-            # Store in DB
             conn = sqlite3.connect('viewonce.db')
             c = conn.cursor()
             c.execute("INSERT INTO images (id, filename) VALUES (?, ?)", (img_id, filename))
             conn.commit()
             conn.close()
 
-            return f"Link: {request.host_url}view/{img_id}"
-        
-
+            link = request.host_url + "view/" + img_id
+            return render_template("upload_success.html", link=link)
 
     return render_template('upload.html')
 
@@ -65,23 +60,9 @@ def view_image(img_id):
             conn.close()
             return "This image has already been viewed."
         else:
-            # Mark as viewed
             c.execute("UPDATE images SET viewed=1 WHERE id=?", (img_id,))
             conn.commit()
             conn.close()
-
-            # Example OpenAI usage: Log message
-            try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages=[
-                        {"role": "user", "content": f"A secure image with ID {img_id} was viewed once. Generate a short log entry."}
-                    ]
-                )
-                print("OpenAI log:", response['choices'][0]['message']['content'])
-            except Exception as e:
-                print("OpenAI error:", e)
-
             return render_template('view.html', filename=filename)
     else:
         conn.close()
@@ -91,13 +72,6 @@ def view_image(img_id):
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-
-
 if __name__ == '__main__':
-    import os
-    os.makedirs('uploads', exist_ok=True)
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
-    
-
