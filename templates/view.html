@@ -16,6 +16,8 @@
       justify-content: center;
       align-items: center;
       position: relative;
+      color: white;
+      font-family: sans-serif;
     }
 
     img.secure-image {
@@ -24,6 +26,7 @@
       object-fit: contain;
       user-select: none;
       pointer-events: none;
+      position: relative;
     }
 
     .btn-group {
@@ -101,6 +104,16 @@
       animation: spin 1s linear infinite;
     }
 
+    .watermark {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 14px;
+      opacity: 0.2;
+      z-index: 5;
+      pointer-events: none;
+    }
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
@@ -117,6 +130,16 @@
     window.addEventListener('load', () => {
       const loader = document.getElementById('loading-screen');
       if (loader) loader.style.display = 'none';
+
+      // Auto-clear screen after 1 minute
+      setTimeout(() => {
+        document.body.innerHTML = '<h1 style="text-align:center; color:white">This image has expired.</h1>';
+      }, 60000);
+
+      // Auto-close tab after 2 minutes
+      setTimeout(() => {
+        window.close();
+      }, 120000);
     });
 
     document.addEventListener('keydown', function(e) {
@@ -126,6 +149,10 @@
           document.getElementById('overlay').style.display = 'none';
         }, 2000);
       }
+    });
+
+    window.addEventListener('blur', () => {
+      document.body.innerHTML = '<h1 style="text-align:center; color:white">Tab switch detected. View blocked.</h1>';
     });
 
     document.addEventListener('contextmenu', e => e.preventDefault());
@@ -166,6 +193,7 @@
     <button class="btn" onclick="copyLink()">Copy Link</button>
     <button class="btn" onclick="downloadBlankFile()">Save</button>
   </div>
+  <div class="watermark">Jolly Viewer - One Time Only</div>
   <img class="secure-image" src="{{ url_for('uploaded_file', filename=filename) }}" alt="Secure View">
   <div class="copied-toast" id="copied-toast">Link Copied!</div>
 </body>
