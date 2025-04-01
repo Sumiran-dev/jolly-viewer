@@ -5,6 +5,7 @@ import sqlite3
 from dotenv import load_dotenv
 import openai
 
+
 # Load .env
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -86,7 +87,13 @@ def view_image(img_id):
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+
+
 if __name__ == '__main__':
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    init_db()
-    app.run(debug=True)
+    import os
+    os.makedirs('uploads', exist_ok=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+
+    
+
