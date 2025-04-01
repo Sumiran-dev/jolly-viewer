@@ -87,6 +87,7 @@
       opacity: 0;
       z-index: 998;
       pointer-events: none;
+      transition: opacity 0.1s ease;
     }
 
     #redblue-lights {
@@ -95,7 +96,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 998;
+      z-index: 997;
       pointer-events: none;
       background: linear-gradient(90deg, red, blue);
       background-size: 400% 400%;
@@ -138,25 +139,12 @@
 
     .watermark {
       position: absolute;
-      top: 10px;
+      bottom: 10px;
       left: 10px;
-      font-size: 14px;
-      opacity: 0.2;
+      font-size: 12px;
+      opacity: 0.3;
       z-index: 5;
       pointer-events: none;
-    }
-
-    .return-btn {
-      display: none;
-      position: absolute;
-      bottom: 40px;
-      padding: 10px 20px;
-      font-weight: bold;
-      background: #fff;
-      color: #000;
-      border-radius: 8px;
-      border: none;
-      z-index: 1002;
     }
 
     @keyframes spin {
@@ -165,23 +153,26 @@
     }
   </style>
   <script>
-    const siren = new Audio("https://www.soundjay.com/police/police-siren-01.mp3");
+    let siren;
+    function initSiren() {
+      siren = new Audio("https://www.soundjay.com/police/police-siren-01.mp3");
+      siren.load();
+    }
 
     window.addEventListener('load', () => {
+      initSiren();
       document.getElementById('loading-screen').style.display = 'none';
 
-      // Auto-clear screen after 1 minute
+      // Add timestamp + user agent to watermark
+      const watermark = document.querySelector('.watermark');
+      const now = new Date().toLocaleString();
+      const ua = navigator.userAgent;
+      watermark.innerText = `Jolly Viewer | ${now} | ${ua}`;
+
       setTimeout(() => {
         document.body.innerHTML = '<h1 style="text-align:center; color:white">This image has expired.</h1>';
-        const btn = document.createElement('button');
-        btn.innerText = 'Return to Upload';
-        btn.className = 'return-btn';
-        btn.onclick = () => window.location.href = '/';
-        document.body.appendChild(btn);
-        btn.style.display = 'block';
       }, 60000);
 
-      // Auto-close tab after 2 minutes
       setTimeout(() => {
         window.close();
       }, 120000);
@@ -191,7 +182,8 @@
       const overlay = document.getElementById('overlay');
       const redblue = document.getElementById('redblue-lights');
       const flash = document.getElementById('flash-effect');
-      siren.play();
+
+      if (siren) siren.play();
       overlay.style.display = 'block';
       redblue.style.display = 'block';
       flash.style.opacity = 1;
@@ -199,7 +191,7 @@
         overlay.style.display = 'none';
         redblue.style.display = 'none';
         flash.style.opacity = 0;
-      }, 2000);
+      }, 1000);
     }
 
     document.addEventListener('keydown', function(e) {
@@ -208,9 +200,11 @@
       }
     });
 
-    window.addEventListener('blur', () => {
-      triggerAlarmEffects();
-      document.body.innerHTML = '<h1 style="text-align:center; color:white">Tab switch or screenshot detected. View blocked.</h1>';
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        triggerAlarmEffects();
+        document.body.innerHTML = '<h1 style="text-align:center; color:white">Screenshot attempt or tab change detected. Access revoked.</h1>';
+      }
     });
 
     document.addEventListener('contextmenu', e => e.preventDefault());
@@ -254,8 +248,9 @@
     <button class="btn" onclick="copyLink()">Copy Link</button>
     <button class="btn" onclick="downloadBlankFile()">Save</button>
   </div>
-  <div class="watermark">Jolly Viewer - One Time Only</div>
+  <div class="watermark">Loading watermark...</div>
   <img class="secure-image" src="{{ url_for('uploaded_file', filename=filename) }}" alt="Secure View">
   <div class="copied-toast" id="copied-toast">Link Copied!</div>
 </body>
 </html>
+
