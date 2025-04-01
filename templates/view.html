@@ -72,9 +72,41 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: #000;
+      background: black;
       z-index: 999;
       display: none;
+    }
+
+    #flash-effect {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      opacity: 0;
+      z-index: 998;
+      pointer-events: none;
+    }
+
+    #redblue-lights {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 998;
+      pointer-events: none;
+      background: linear-gradient(90deg, red, blue);
+      background-size: 400% 400%;
+      animation: flashing 0.4s infinite alternate;
+      display: none;
+      opacity: 0.5;
+    }
+
+    @keyframes flashing {
+      0% { background-position: left; }
+      100% { background-position: right; }
     }
 
     #loading-screen {
@@ -114,26 +146,39 @@
       pointer-events: none;
     }
 
+    .return-btn {
+      display: none;
+      position: absolute;
+      bottom: 40px;
+      padding: 10px 20px;
+      font-weight: bold;
+      background: #fff;
+      color: #000;
+      border-radius: 8px;
+      border: none;
+      z-index: 1002;
+    }
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-
-    @media (max-width: 768px) {
-      .btn {
-        padding: 8px 16px;
-        font-size: 14px;
-      }
-    }
   </style>
   <script>
+    const siren = new Audio("https://www.soundjay.com/police/police-siren-01.mp3");
+
     window.addEventListener('load', () => {
-      const loader = document.getElementById('loading-screen');
-      if (loader) loader.style.display = 'none';
+      document.getElementById('loading-screen').style.display = 'none';
 
       // Auto-clear screen after 1 minute
       setTimeout(() => {
         document.body.innerHTML = '<h1 style="text-align:center; color:white">This image has expired.</h1>';
+        const btn = document.createElement('button');
+        btn.innerText = 'Return to Upload';
+        btn.className = 'return-btn';
+        btn.onclick = () => window.location.href = '/';
+        document.body.appendChild(btn);
+        btn.style.display = 'block';
       }, 60000);
 
       // Auto-close tab after 2 minutes
@@ -142,17 +187,30 @@
       }, 120000);
     });
 
+    function triggerAlarmEffects() {
+      const overlay = document.getElementById('overlay');
+      const redblue = document.getElementById('redblue-lights');
+      const flash = document.getElementById('flash-effect');
+      siren.play();
+      overlay.style.display = 'block';
+      redblue.style.display = 'block';
+      flash.style.opacity = 1;
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        redblue.style.display = 'none';
+        flash.style.opacity = 0;
+      }, 2000);
+    }
+
     document.addEventListener('keydown', function(e) {
       if (e.key === 'PrintScreen') {
-        document.getElementById('overlay').style.display = 'block';
-        setTimeout(() => {
-          document.getElementById('overlay').style.display = 'none';
-        }, 2000);
+        triggerAlarmEffects();
       }
     });
 
     window.addEventListener('blur', () => {
-      document.body.innerHTML = '<h1 style="text-align:center; color:white">Tab switch detected. View blocked.</h1>';
+      triggerAlarmEffects();
+      document.body.innerHTML = '<h1 style="text-align:center; color:white">Tab switch or screenshot detected. View blocked.</h1>';
     });
 
     document.addEventListener('contextmenu', e => e.preventDefault());
@@ -165,6 +223,7 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      triggerAlarmEffects();
     }
 
     function copyLink() {
@@ -185,6 +244,8 @@
 </head>
 <body>
   <div id="overlay"></div>
+  <div id="redblue-lights"></div>
+  <div id="flash-effect"></div>
   <div id="loading-screen">
     <div class="spinner"></div>
     <div>Waking up the server... One moment ☕</div>
