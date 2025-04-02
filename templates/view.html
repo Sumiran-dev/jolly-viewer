@@ -15,7 +15,6 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      position: relative;
       color: white;
       font-family: sans-serif;
     }
@@ -64,35 +63,54 @@
       z-index: 1001;
     }
 
-    #overlay, #flash-effect, #redblue-lights {
+    #overlay {
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
+      background: black;
+      display: none;
+      z-index: 999;
       pointer-events: none;
     }
 
-    #overlay {
-      background: black;
-      z-index: 999;
-      display: none;
-    }
-
     #flash-effect {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       background: white;
       opacity: 0;
+      visibility: hidden;
       z-index: 998;
-      transition: opacity 0.2s ease;
+      pointer-events: none;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+
+    #flash-effect.active {
+      opacity: 1;
+      visibility: visible;
     }
 
     #redblue-lights {
-      z-index: 997;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
       background: linear-gradient(90deg, red, blue);
       background-size: 400% 400%;
-      animation: flashing 0.4s infinite alternate;
       display: none;
       opacity: 0.5;
+      animation: flashing 0.4s infinite alternate;
+      z-index: 997;
+      pointer-events: none;
+    }
+
+    #redblue-lights.active {
+      display: block;
     }
 
     @keyframes flashing {
@@ -112,7 +130,6 @@
       justify-content: center;
       align-items: center;
       z-index: 1000;
-      color: white;
       font-size: 18px;
       gap: 20px;
     }
@@ -126,6 +143,11 @@
       animation: spin 1s linear infinite;
     }
 
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
     .watermark {
       position: absolute;
       bottom: 10px;
@@ -136,15 +158,13 @@
       pointer-events: none;
       display: none;
     }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
   </style>
 
   <script>
+    let siren;
+
     window.addEventListener('load', () => {
+      siren = document.getElementById('siren-audio');
       document.getElementById('loading-screen').style.display = 'none';
 
       const watermark = document.querySelector('.watermark');
@@ -166,39 +186,35 @@
       }, 120000);
     });
 
-    function triggerAlarmEffects(siren) {
+    function triggerAlarmEffects() {
       const overlay = document.getElementById('overlay');
       const redblue = document.getElementById('redblue-lights');
       const flash = document.getElementById('flash-effect');
 
-      if (!overlay || !redblue || !flash) return;
-
       overlay.style.display = 'block';
-      redblue.style.display = 'block';
+      redblue.classList.add('active');
+      flash.classList.add('active');
 
-      // Force reflow for smooth flash
-      void flash.offsetWidth;
-      flash.style.opacity = '1';
+      // Play siren
+      siren.loop = true;
+      siren.play().catch(err => {
+        alert("Browser blocked audio. Tap again to allow.");
+        console.warn(err);
+      });
 
-      if (siren) {
-        siren.loop = true;
-        siren.play().catch((err) => {
-          console.error("Audio blocked:", err);
-          alert("Sound was blocked by browser. Please tap again.");
-        });
-
-        setTimeout(() => {
-          siren.pause();
-          siren.currentTime = 0;
-          siren.loop = false;
-        }, 3600000); // 1 hour
-      }
-
+      // Stop visuals after 3 seconds
       setTimeout(() => {
         overlay.style.display = 'none';
-        redblue.style.display = 'none';
-        flash.style.opacity = '0';
+        redblue.classList.remove('active');
+        flash.classList.remove('active');
       }, 3000);
+
+      // Stop siren after 1 hour
+      setTimeout(() => {
+        siren.pause();
+        siren.currentTime = 0;
+        siren.loop = false;
+      }, 3600000);
     }
 
     function downloadBlankFile() {
@@ -210,8 +226,7 @@
       link.click();
       document.body.removeChild(link);
 
-      const siren = new Audio("{{ url_for('static', filename='siren.mp3') }}");
-      triggerAlarmEffects(siren);
+      triggerAlarmEffects();
     }
 
     function copyLink() {
@@ -229,31 +244,26 @@
       }, 2000);
     }
 
-    // Trigger siren/flash on PrintScreen, volume key, or mobile key events
     document.addEventListener('keydown', function(e) {
-      const key = e.key;
-
-      // Detect PrintScreen or volume key
-      if (key === 'PrintScreen' || key === 'AudioVolumeUp' || key === 'AudioVolumeDown') {
-        const s = new Audio("{{ url_for('static', filename='siren.mp3') }}");
-        triggerAlarmEffects(s);
+      const keys = ['PrintScreen', 'AudioVolumeUp', 'AudioVolumeDown', 'VolumeUp', 'VolumeDown'];
+      if (keys.includes(e.key)) {
+        triggerAlarmEffects();
       }
     });
 
-    // Trigger on tab change / app switch
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        const s = new Audio("{{ url_for('static', filename='siren.mp3') }}");
-        triggerAlarmEffects(s);
-        document.body.innerHTML = '<h1 style="text-align:center; color:white">Screenshot attempt or tab change detected. Access revoked.</h1>';
+        triggerAlarmEffects();
+        document.body.innerHTML = '<h1 style="text-align:center; color:white">Screenshot or tab change detected. Access revoked.</h1>';
       }
     });
 
-    // Disable right-click
     document.addEventListener('contextmenu', e => e.preventDefault());
   </script>
 </head>
 <body>
+  <audio id="siren-audio" src="{{ url_for('static', filename='siren.mp3') }}" preload="auto"></audio>
+
   <div id="overlay"></div>
   <div id="redblue-lights"></div>
   <div id="flash-effect"></div>
