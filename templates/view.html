@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Secure View</title>
   <style>
     html, body {
@@ -26,7 +26,7 @@
       object-fit: contain;
       user-select: none;
       pointer-events: none;
-      position: relative;
+      z-index: 1;
     }
 
     .btn-group {
@@ -35,8 +35,6 @@
       right: 20px;
       display: flex;
       gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
     }
 
     .btn {
@@ -66,38 +64,30 @@
       z-index: 1001;
     }
 
-    #overlay {
+    #overlay, #flash-effect, #redblue-lights {
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
+      pointer-events: none;
+    }
+
+    #overlay {
       background: black;
       z-index: 999;
       display: none;
     }
 
     #flash-effect {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
       background: white;
       opacity: 0;
       z-index: 998;
-      pointer-events: none;
       transition: opacity 0.1s ease;
     }
 
     #redblue-lights {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
       z-index: 997;
-      pointer-events: none;
       background: linear-gradient(90deg, red, blue);
       background-size: 400% 400%;
       animation: flashing 0.4s infinite alternate;
@@ -123,7 +113,6 @@
       align-items: center;
       z-index: 1000;
       color: white;
-      font-family: sans-serif;
       font-size: 18px;
       gap: 20px;
     }
@@ -145,6 +134,7 @@
       opacity: 0.3;
       z-index: 5;
       pointer-events: none;
+      display: none;
     }
 
     @keyframes spin {
@@ -152,22 +142,20 @@
       100% { transform: rotate(360deg); }
     }
   </style>
-  <script>
-    let siren;
-    function initSiren() {
-      siren = new Audio("https://www.soundjay.com/police/police-siren-01.mp3");
-      siren.load();
-    }
 
+  <script>
     window.addEventListener('load', () => {
-      initSiren();
       document.getElementById('loading-screen').style.display = 'none';
 
-      // Add timestamp + user agent to watermark
       const watermark = document.querySelector('.watermark');
-      const now = new Date().toLocaleString();
-      const ua = navigator.userAgent;
-      watermark.innerText = `Jolly Viewer | ${now} | ${ua}`;
+      const isDev = window.location.search.includes("dev=true");
+
+      if (isDev) {
+        const now = new Date().toLocaleString();
+        const ua = navigator.userAgent;
+        watermark.innerText = `Jolly Viewer | ${now} | ${ua}`;
+        watermark.style.display = 'block';
+      }
 
       setTimeout(() => {
         document.body.innerHTML = '<h1 style="text-align:center; color:white">This image has expired.</h1>';
@@ -178,38 +166,40 @@
       }, 120000);
     });
 
-    function triggerAlarmEffects() {
+    function triggerAlarmEffects(siren) {
       const overlay = document.getElementById('overlay');
       const redblue = document.getElementById('redblue-lights');
       const flash = document.getElementById('flash-effect');
 
-      if (siren) siren.play();
       overlay.style.display = 'block';
       redblue.style.display = 'block';
       flash.style.opacity = 1;
-      setTimeout(() => {
-        overlay.style.display = 'none';
-        redblue.style.display = 'none';
-        flash.style.opacity = 0;
-      }, 1000);
+
+      if (siren) {
+        siren.loop = true;
+        siren.play().then(() => {
+          console.log("Siren is playing.");
+        }).catch((err) => {
+          console.error("Siren playback blocked:", err);
+          alert("Sound blocked by browser. Please click the button again.");
+        });
+
+        // Stop siren after 1 hour
+        setTimeout(() => {
+          siren.pause();
+          siren.currentTime = 0;
+          siren.loop = false;
+          overlay.style.display = 'none';
+          redblue.style.display = 'none';
+          flash.style.opacity = 0;
+          console.log("Siren and effects stopped.");
+        }, 3600000);
+      }
     }
 
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'PrintScreen') {
-        triggerAlarmEffects();
-      }
-    });
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        triggerAlarmEffects();
-        document.body.innerHTML = '<h1 style="text-align:center; color:white">Screenshot attempt or tab change detected. Access revoked.</h1>';
-      }
-    });
-
-    document.addEventListener('contextmenu', e => e.preventDefault());
-
     function downloadBlankFile() {
+      console.log("Save clicked.");
+
       const blob = new Blob([''], { type: 'text/plain' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -217,7 +207,9 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      triggerAlarmEffects();
+
+      const siren = new Audio("{{ url_for('static', filename='siren.mp3') }}");
+      triggerAlarmEffects(siren);
     }
 
     function copyLink() {
@@ -234,6 +226,23 @@
         toast.style.display = 'none';
       }, 2000);
     }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'PrintScreen') {
+        const s = new Audio("{{ url_for('static', filename='siren.mp3') }}");
+        triggerAlarmEffects(s);
+      }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        const s = new Audio("{{ url_for('static', filename='siren.mp3') }}");
+        triggerAlarmEffects(s);
+        document.body.innerHTML = '<h1 style="text-align:center; color:white">Screenshot attempt or tab change detected. Access revoked.</h1>';
+      }
+    });
+
+    document.addEventListener('contextmenu', e => e.preventDefault());
   </script>
 </head>
 <body>
@@ -244,13 +253,14 @@
     <div class="spinner"></div>
     <div>Waking up the server... One moment ☕</div>
   </div>
+
   <div class="btn-group">
     <button class="btn" onclick="copyLink()">Copy Link</button>
     <button class="btn" onclick="downloadBlankFile()">Save</button>
   </div>
+
   <div class="watermark">Loading watermark...</div>
   <img class="secure-image" src="{{ url_for('uploaded_file', filename=filename) }}" alt="Secure View">
   <div class="copied-toast" id="copied-toast">Link Copied!</div>
 </body>
 </html>
-
